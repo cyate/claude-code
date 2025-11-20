@@ -1,68 +1,88 @@
 ---
-description: 
-globs: *.py
+description: Reglas para desarrollo en Go con go-bricks y alta concurrencia
+globs: *.go, go.mod, go.sum, Makefile
 alwaysApply: false
 ---
 
-  You are an expert in Python, FastAPI, and scalable API development.
-  
-  Key Principles
-  - Write concise, technical responses with accurate Python examples.
-  - Use functional, declarative programming; avoid classes where possible.
-  - Prefer iteration and modularization over code duplication.
-  - Use descriptive variable names with auxiliary verbs (e.g., is_active, has_permission).
-  - Use lowercase with underscores for directories and files (e.g., routers/user_routes.py).
-  - Favor named exports for routes and utility functions.
-  - Use the Receive an Object, Return an Object (RORO) pattern.
-  
-  Python/FastAPI
-  - Use def for pure functions and async def for asynchronous operations.
-  - Use type hints for all function signatures. Prefer Pydantic models over raw dictionaries for input validation.
-  - File structure: exported router, sub-routes, utilities, static content, types (models, schemas).
-  - Avoid unnecessary curly braces in conditional statements.
-  - For single-line statements in conditionals, omit curly braces.
-  - Use concise, one-line syntax for simple conditional statements (e.g., if condition: do_something()).
-  
-  Error Handling and Validation
-  - Prioritize error handling and edge cases:
-    - Handle errors and edge cases at the beginning of functions.
-    - Use early returns for error conditions to avoid deeply nested if statements.
-    - Place the happy path last in the function for improved readability.
-    - Avoid unnecessary else statements; use the if-return pattern instead.
-    - Use guard clauses to handle preconditions and invalid states early.
-    - Implement proper error logging and user-friendly error messages.
-    - Use custom error types or error factories for consistent error handling.
-  
-  Dependencies
-  - FastAPI
-  - Pydantic v2
-  - Async database libraries like asyncpg or aiomysql
-  - SQLAlchemy 2.0 (if using ORM features)
-  
-  FastAPI-Specific Guidelines
-  - Use functional components (plain functions) and Pydantic models for input validation and response schemas.
-  - Use declarative route definitions with clear return type annotations.
-  - Use def for synchronous operations and async def for asynchronous ones.
-  - Minimize @app.on_event("startup") and @app.on_event("shutdown"); prefer lifespan context managers for managing startup and shutdown events.
-  - Use middleware for logging, error monitoring, and performance optimization.
-  - Optimize for performance using async functions for I/O-bound tasks, caching strategies, and lazy loading.
-  - Use HTTPException for expected errors and model them as specific HTTP responses.
-  - Use middleware for handling unexpected errors, logging, and error monitoring.
-  - Use Pydantic's BaseModel for consistent input/output validation and response schemas.
-  
-  Performance Optimization
-  - Minimize blocking I/O operations; use asynchronous operations for all database calls and external API requests.
-  - Implement caching for static and frequently accessed data using tools like Redis or in-memory stores.
-  - Optimize data serialization and deserialization with Pydantic.
-  - Use lazy loading techniques for large datasets and substantial API responses.
-  
-  Key Conventions
-  1. Rely on FastAPI’s dependency injection system for managing state and shared resources.
-  2. Prioritize API performance metrics (response time, latency, throughput).
-  3. Limit blocking operations in routes:
-     - Favor asynchronous and non-blocking flows.
-     - Use dedicated async functions for database and external API operations.
-     - Structure routes and dependencies clearly to optimize readability and maintainability.
-  
-  Refer to FastAPI documentation for Data Models, Path Operations, and Middleware for best practices.
-  
+You are an expert in Go (Golang), High Concurrency systems, and the `go-bricks` framework.
+
+Key Principles
+- Write idiomatic Go code (following "Effective Go").
+- Prioritize composition over inheritance; use Struct embedding.
+- Use Interfaces to define behavior and Decoupling (Accept interfaces, return structs).
+- Keep functions small and focused (Single Responsibility Principle).
+- Naming conventions: 
+  - `PascalCase` for exported (public) symbols.
+  - `camelCase` for unexported (private) symbols.
+  - Short variable names for local scope (e.g., `ctx`, `err`, `req`).
+- Project Layout: Follow the Standard Go Project Layout (`cmd/`, `internal/`, `pkg/`).
+- Use Hexagonal Architecture (Ports and Adapters) as favored by `go-bricks`.
+
+Go/Concurrency Patterns
+- Use `goroutines` for concurrent tasks, but manage them strictly:
+  - Always use `sync.WaitGroup` or `errgroup` to manage goroutine lifecycles.
+  - Never start a goroutine without knowing how it will stop.
+- Use `Channels` for communication between goroutines, not for state management (Share memory by communicating).
+- Use `sync.Mutex` or `sync.RWMutex` for protecting shared state when channels are overkill.
+- Context Propagation:
+  - ALWAYS pass `context.Context` as the first argument to functions performing I/O or long-running tasks.
+  - Respect context cancellation (`ctx.Done()`) to prevent goroutine leaks.
+
+Error Handling and Validation
+- Treat errors as values. check `if err != nil` explicitly.
+- DO NOT use `panic` for normal control flow. Only use it for unrecoverable startup errors.
+- Wrap errors with context using `fmt.Errorf("%w", err)` to allow for error unwrapping and stack tracing.
+- Use "Guard Clauses" (early returns) to handle errors immediately and keep the "happy path" to the left.
+- Use `go-playground/validator` logic (struct tags) for input validation if compatible with `go-bricks` DTOs.
+
+Dependencies & Framework (go-bricks)
+- Go 1.21+
+- Framework: `go-bricks` (https://github.com/cyate/go-bricks)
+- Dependency Injection: Understand that `go-bricks` likely uses a DI container (like Uber generic `fx` or similar pattern). Register providers correctly.
+- Structured Logging: Use the logger provided by `go-bricks` (likely based on `zap` or `slog`). Avoid standard `log.Println`.
+
+go-bricks Specific Guidelines
+- Modular Design: Structure applications as independent "bricks" or modules.
+- Middleware: Implement middleware for cross-cutting concerns (logging, auth, recovery) using the framework's chain.
+- Configuration: Use the framework's configuration loader (usually mapping generic config files to structs).
+- Transport: Clearly separate HTTP/GRPC handlers from business logic (Service Layer).
+- Observability: Ensure metrics and traces are hooked into the framework's standard providers.
+
+Performance Optimization (High Concurrency)
+- Memory Management:
+  - Be mindful of Pointers vs Values. Pass large structs by pointer, small ones by value.
+  - Avoid memory leaks: Always `defer` closing resources (Body, Rows, Files) immediately after checking for errors.
+- Database:
+  - Use connection pooling settings (`SetMaxOpenConns`, `SetMaxIdleConns`) appropriate for high throughput.
+  - Prepare statements for repeated queries.
+- JSON: Use efficient JSON serialization (standard library is fine for most, but consider `goccy/go-json` for extreme performance if needed).
+
+Key Conventions
+1. **Dependency Injection:** Rely on the framework to wire dependencies. Do not use global state.
+2. **Concurrency Safety:** Assume all service methods can be called concurrently.
+3. **Blocking Operations:**
+   - Never block the main thread or the event loop.
+   - Offload heavy computation to worker pools if necessary.
+   - Use non-blocking I/O libraries.
+
+Example (Error Handling):
+```go
+func (s *Service) GetData(ctx context.Context, id string) (*Data, error) {
+    // Validate inputs
+    if id == "" {
+        return nil, ErrInvalidInput
+    }
+
+    // Check context before heavy lifting
+    if ctx.Err() != nil {
+        return nil, ctx.Err()
+    }
+
+    // Call repository
+    data, err := s.repo.Find(ctx, id)
+    if err != nil {
+        return nil, fmt.Errorf("failed to find data: %w", err)
+    }
+
+    return data, nil
+}
